@@ -2,202 +2,277 @@ import wx
 import wx.adv
 import datetime
 
-class MyFrame(wx.Frame):
+class MainFrame(wx.Frame):
     def __init__(self, *args, **kw):
-        super(MyFrame, self).__init__(*args, **kw)
-        
-        self.current_date = datetime.datetime.today()
+        super(MainFrame, self).__init__(*args, **kw)
+
         self.InitUI()
-        self.timer = wx.Timer(self)
-        self.Bind(wx.EVT_TIMER, self.update_timer, self.timer)
-        self.start_time = None
-
+        
     def InitUI(self):
-        self.SetTitle('Navigation Example')
-        self.Maximize(True)
+        self.panel = wx.Panel(self)
 
-        panel = wx.Panel(self)
-        main_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.navbar = wx.Panel(self.panel, size=(-1, 50), style=wx.BORDER_SIMPLE)
+        self.navbar.SetBackgroundColour('#333333')
 
-        # Create a dark grey navbar
-        navbar = wx.Panel(panel, size=(-1, 50))
-        navbar.SetBackgroundColour(wx.Colour(50, 50, 50))
-        nav_sizer = wx.BoxSizer(wx.HORIZONTAL)
-
-        # Left buttons
-        self.create_nav_button(navbar, nav_sizer, "Activity", self.OnActivity)
-        self.create_nav_button(navbar, nav_sizer, "Timeline", self.OnTimeline)
-        self.create_nav_button(navbar, nav_sizer, "StopWatch", self.OnStopWatch)
-
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.navbar_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.content_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        
+        # Navbar buttons (left)
+        self.activity_btn = wx.Button(self.navbar, label="Activity")
+        self.timeline_btn = wx.Button(self.navbar, label="Timeline")
+        self.stopwatch_btn = wx.Button(self.navbar, label="StopWatch")
+        
+        self.navbar_sizer.Add(self.activity_btn, flag=wx.ALL, border=5)
+        self.navbar_sizer.Add(self.timeline_btn, flag=wx.ALL, border=5)
+        self.navbar_sizer.Add(self.stopwatch_btn, flag=wx.ALL, border=5)
+        
         # Center label
-        nav_sizer.AddStretchSpacer()
-        center_label = wx.StaticText(navbar, label="Center")
-        center_label.SetForegroundColour(wx.Colour(255, 255, 255))
-        nav_sizer.Add(center_label, 0, wx.ALIGN_CENTER_VERTICAL)
-        nav_sizer.AddStretchSpacer()
-
-        # Right buttons
-        tools_button = wx.Button(navbar, label="Tools")
+        center_label = wx.StaticText(self.navbar, label="Center")
+        center_label.SetForegroundColour(wx.WHITE)
+        self.navbar_sizer.Add(center_label, proportion=1, flag=wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_CENTER_HORIZONTAL)
+        
+        # Navbar buttons (right)
+        tools_btn = wx.Button(self.navbar, label="Tools")
         tools_menu = wx.Menu()
-        tools_menu.Append(wx.ID_ANY, 'Search')
-        tools_menu.Append(wx.ID_ANY, 'Query')
-        tools_button.Bind(wx.EVT_BUTTON, lambda event: self.PopupMenu(tools_menu, tools_button.GetPosition()))
-        nav_sizer.Add(tools_button, 0, wx.ALL, 5)
+        tools_menu.Append(wx.ID_ANY, "Search")
+        tools_menu.Append(wx.ID_ANY, "Query")
+        tools_btn.Bind(wx.EVT_BUTTON, self.OnToolsMenu)
+        
+        self.navbar_sizer.Add(tools_btn, flag=wx.ALL, border=5)
+        
+        self.rawdata_btn = wx.Button(self.navbar, label="Raw Data")
+        self.settings_btn = wx.Button(self.navbar, label="Settings")
+        
+        self.navbar_sizer.Add(self.rawdata_btn, flag=wx.ALL, border=5)
+        self.navbar_sizer.Add(self.settings_btn, flag=wx.ALL, border=5)
 
-        self.create_nav_button(navbar, nav_sizer, "Raw Data", self.OnRawData)
-        self.create_nav_button(navbar, nav_sizer, "Settings", self.OnSettings)
+        self.navbar.SetSizer(self.navbar_sizer)
+        self.sizer.Add(self.navbar, flag=wx.EXPAND)
+        
+        # Content area
+        self.content_panel = wx.Panel(self.panel)
+        self.content_panel.SetBackgroundColour('#D3D3D3')
+        
+        self.white_box = wx.Panel(self.content_panel, size=(1100, 700), style=wx.BORDER_SIMPLE)
+        self.white_box.SetBackgroundColour(wx.WHITE)
+        self.white_box_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.white_box.SetSizer(self.white_box_sizer)
+        
+        self.content_sizer.AddStretchSpacer(1)
+        self.content_sizer.Add(self.white_box, flag=wx.ALIGN_CENTER_VERTICAL)
+        self.content_sizer.AddStretchSpacer(1)
+        
+        self.content_panel.SetSizer(self.content_sizer)
+        self.sizer.Add(self.content_panel, proportion=1, flag=wx.EXPAND)
 
-        navbar.SetSizer(nav_sizer)
-        main_sizer.Add(navbar, 0, wx.EXPAND)
+        self.panel.SetSizer(self.sizer)
 
-        # Main content area
-        content_panel = wx.Panel(panel)
-        content_panel.SetBackgroundColour(wx.Colour(200, 200, 200))
-        self.content_sizer = wx.BoxSizer(wx.VERTICAL)
-
-        self.content_box = wx.Panel(content_panel, size=(800, 600))
-        self.content_box.SetBackgroundColour(wx.Colour(255, 255, 255))
-        self.content_box.SetWindowStyle(wx.BORDER_RAISED)
-        self.content_sizer.AddStretchSpacer()
-        self.content_sizer.Add(self.content_box, 0, wx.ALIGN_CENTER | wx.ALL, 10)
-        self.content_sizer.AddStretchSpacer()
-        content_panel.SetSizer(self.content_sizer)
-        main_sizer.Add(content_panel, 1, wx.EXPAND)
-
-        panel.SetSizer(main_sizer)
-
-        # Initialize with the Activity page
-        self.OnActivity(None)
-
-    def create_nav_button(self, parent, sizer, label, handler):
-        btn = wx.Button(parent, label=label)
-        btn.Bind(wx.EVT_BUTTON, handler)
-        sizer.Add(btn, 0, wx.ALL, 5)
-
-    def clear_content(self):
-        for child in self.content_box.GetChildren():
+        # Event bindings
+        self.Bind(wx.EVT_BUTTON, self.OnActivity, self.activity_btn)
+        self.Bind(wx.EVT_BUTTON, self.OnTimeline, self.timeline_btn)
+        self.Bind(wx.EVT_BUTTON, self.OnStopWatch, self.stopwatch_btn)
+        self.Bind(wx.EVT_BUTTON, self.OnRawData, self.rawdata_btn)
+        self.Bind(wx.EVT_BUTTON, self.OnSettings, self.settings_btn)
+        
+        self.SetSize((1200, 800))
+        self.Centre()
+        self.Show(True)
+        
+    def ClearContent(self):
+        for child in self.white_box.GetChildren():
             child.Destroy()
-        self.content_box.Layout()
 
     def OnActivity(self, event):
-        self.clear_content()
-        vbox = wx.BoxSizer(wx.VERTICAL)
-        date_str = self.current_date.strftime('%Y-%m-%d')
-        title = wx.StaticText(self.content_box, label=f"Activity for {date_str}")
-        title.SetFont(wx.Font(36, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD))
-        vbox.Add(title, 0, wx.ALIGN_CENTER | wx.TOP, 20)
-
-        hbox = wx.BoxSizer(wx.HORIZONTAL)
-        subtract_btn = wx.Button(self.content_box, label="-1")
-        subtract_btn.Bind(wx.EVT_BUTTON, self.OnSubtract)
-        hbox.Add(subtract_btn, 0, wx.ALL, 5)
-
-        self.dropdown = wx.Choice(self.content_box, choices=["Day", "Week", "Month"])
-        self.dropdown.SetSelection(0)
-        hbox.Add(self.dropdown, 0, wx.ALL, 5)
-
-        add_btn = wx.Button(self.content_box, label="+1")
-        add_btn.Bind(wx.EVT_BUTTON, self.OnAdd)
-        hbox.Add(add_btn, 0, wx.ALL, 5)
-
-        vbox.Add(hbox, 0, wx.ALIGN_CENTER | wx.TOP, 20)
-
-        self.calendar = wx.adv.CalendarCtrl(self.content_box, style=wx.adv.CAL_SHOW_HOLIDAYS)
-        self.calendar.Bind(wx.adv.EVT_CALENDAR, self.OnCalendar)
-        vbox.Add(self.calendar, 0, wx.ALIGN_CENTER | wx.TOP, 20)
-
-        self.content_box.SetSizer(vbox)
-
-    def OnSubtract(self, event):
-        selection = self.dropdown.GetStringSelection()
-        if selection == "Day":
-            self.current_date -= datetime.timedelta(days=1)
-        elif selection == "Week":
-            self.current_date -= datetime.timedelta(weeks=1)
-        elif selection == "Month":
-            self.current_date -= datetime.timedelta(days=30)  # Approximation
-        self.OnActivity(None)
-
-    def OnAdd(self, event):
-        selection = self.dropdown.GetStringSelection()
-        if selection == "Day":
-            self.current_date += datetime.timedelta(days=1)
-        elif selection == "Week":
-            self.current_date += datetime.timedelta(weeks=1)
-        elif selection == "Month":
-            self.current_date += datetime.timedelta(days=30)  # Approximation
-        self.OnActivity(None)
-
-    def OnCalendar(self, event):
-        self.current_date = self.calendar.GetDate().GetTm()
-        self.OnActivity(None)
+        self.ClearContent()
+        
+        today = datetime.date.today().strftime('%Y-%m-%d')
+        title = wx.StaticText(self.white_box, label=f"Activity for {today}")
+        self.white_box_sizer.Add(title, flag=wx.ALL|wx.ALIGN_CENTER, border=10)
+        
+        button_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        left_btn = wx.Button(self.white_box, label="-1")
+        center_btn = wx.ComboBox(self.white_box, choices=["Day", "Week", "Month"])
+        right_btn = wx.Button(self.white_box, label="+1")
+        
+        button_sizer.Add(left_btn, flag=wx.ALL, border=5)
+        button_sizer.Add(center_btn, flag=wx.ALL, border=5)
+        button_sizer.Add(right_btn, flag=wx.ALL, border=5)
+        
+        self.white_box_sizer.Add(button_sizer, flag=wx.ALIGN_CENTER)
+        
+        calendar = wx.adv.CalendarCtrl(self.white_box)
+        self.white_box_sizer.Add(calendar, flag=wx.ALL|wx.ALIGN_CENTER, border=10)
+        
+        yellow_box = wx.Panel(self.white_box, size=(-1, 50), style=wx.BORDER_SIMPLE)
+        yellow_box.SetBackgroundColour('#FFFFE0')
+        self.white_box_sizer.Add(yellow_box, flag=wx.EXPAND|wx.ALL, border=10)
+        
+        buttons_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        summary_btn = wx.Button(self.white_box, label="Summary")
+        window_btn = wx.Button(self.white_box, label="Window")
+        browser_btn = wx.Button(self.white_box, label="Browser")
+        editor_btn = wx.Button(self.white_box, label="Editor")
+        
+        buttons_sizer.Add(summary_btn, flag=wx.ALL, border=5)
+        buttons_sizer.Add(window_btn, flag=wx.ALL, border=5)
+        buttons_sizer.Add(browser_btn, flag=wx.ALL, border=5)
+        buttons_sizer.Add(editor_btn, flag=wx.ALL, border=5)
+        
+        self.white_box_sizer.Add(buttons_sizer, flag=wx.ALIGN_CENTER)
+        
+        grid_sizer = wx.GridSizer(2, 3, 10, 10)
+        
+        grid_sizer.Add(wx.StaticText(self.white_box, label="Top Applications"), flag=wx.ALL, border=5)
+        grid_sizer.Add(wx.StaticText(self.white_box, label="Top Window Title"), flag=wx.ALL, border=5)
+        grid_sizer.Add(wx.StaticText(self.white_box, label="Timeline (barchart)"), flag=wx.ALL, border=5)
+        grid_sizer.Add(wx.StaticText(self.white_box, label="Top Categories"), flag=wx.ALL, border=5)
+        grid_sizer.Add(wx.StaticText(self.white_box, label="Category Tree"), flag=wx.ALL, border=5)
+        grid_sizer.Add(wx.StaticText(self.white_box, label="Category Sunburst"), flag=wx.ALL, border=5)
+        
+        self.white_box_sizer.Add(grid_sizer, flag=wx.ALIGN_CENTER|wx.ALL, border=10)
+        
+        self.white_box.Layout()
 
     def OnTimeline(self, event):
-        self.clear_content()
-        vbox = wx.BoxSizer(wx.VERTICAL)
-        title = wx.StaticText(self.content_box, label="Timeline")
-        title.SetFont(wx.Font(24, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD))
-        vbox.Add(title, 0, wx.ALIGN_CENTER | wx.TOP, 20)
-        self.content_box.SetSizer(vbox)
+        self.ClearContent()
+        
+        title = wx.StaticText(self.white_box, label="Timeline")
+        self.white_box_sizer.Add(title, flag=wx.ALL|wx.ALIGN_CENTER, border=10)
+        
+        interval_mode_label = wx.StaticText(self.white_box, label="Interval mode : ")
+        interval_mode = wx.ComboBox(self.white_box, choices=["Last durations", "Range"])
+        show_last_label = wx.StaticText(self.white_box, label="Show Last : ")
+        show_last = wx.ComboBox(self.white_box, choices=["15min", "30min", "1h", "2h", "3h", "4h", "6h", "12h", "24h"])
+        
+        self.white_box_sizer.Add(interval_mode_label, flag=wx.ALL, border=5)
+        self.white_box_sizer.Add(interval_mode, flag=wx.ALL|wx.EXPAND, border=5)
+        self.white_box_sizer.Add(show_last_label, flag=wx.ALL, border=5)
+        self.white_box_sizer.Add(show_last, flag=wx.ALL|wx.EXPAND, border=5)
+        
+        events_shown_label = wx.StaticText(self.white_box, label="Events shown")
+        self.white_box_sizer.Add(events_shown_label, flag=wx.ALL, border=10)
+        
+        grid_sizer = wx.GridSizer(2, 2, 10, 10)
+        
+        for i in range(4):
+            grid_sizer.Add(wx.Panel(self.white_box, size=(200, 100), style=wx.BORDER_SIMPLE), flag=wx.ALL, border=5)
+        
+        self.white_box_sizer.Add(grid_sizer, flag=wx.ALIGN_CENTER|wx.ALL, border=10)
+        
+        self.white_box.Layout()
 
     def OnStopWatch(self, event):
-        self.clear_content()
-        vbox = wx.BoxSizer(wx.VERTICAL)
+        self.ClearContent()
+        
+        title = wx.StaticText(self.white_box, label="StopWatch")
+        self.white_box_sizer.Add(title, flag=wx.ALL|wx.ALIGN_CENTER, border=10)
+        
+        self.time_display = wx.StaticText(self.white_box, label="00:00:00", style=wx.ALIGN_CENTER)
+        font = self.time_display.GetFont()
+        font.PointSize += 20
+        self.time_display.SetFont(font)
+        self.white_box_sizer.Add(self.time_display, flag=wx.ALL|wx.ALIGN_CENTER, border=10)
+        
+        buttons_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.start_btn = wx.Button(self.white_box, label="Start")
+        self.stop_btn = wx.Button(self.white_box, label="Stop")
+        
+        buttons_sizer.Add(self.start_btn, flag=wx.ALL, border=5)
+        buttons_sizer.Add(self.stop_btn, flag=wx.ALL, border=5)
+        
+        self.white_box_sizer.Add(buttons_sizer, flag=wx.ALIGN_CENTER)
+        
+        self.start_btn.Bind(wx.EVT_BUTTON, self.OnStart)
+        self.stop_btn.Bind(wx.EVT_BUTTON, self.OnStop)
+        
+        self.timer = wx.Timer(self)
+        self.Bind(wx.EVT_TIMER, self.OnTimer)
+        
+        self.start_time = None
+        
+        self.white_box.Layout()
 
-        title = wx.StaticText(self.content_box, label="StopWatch")
-        title.SetFont(wx.Font(36, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD))
-        vbox.Add(title, 0, wx.ALIGN_CENTER | wx.TOP, 20)
-
-        self.timer_display = wx.StaticText(self.content_box, label="00:00:00")
-        self.timer_display.SetFont(wx.Font(48, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD))
-        vbox.Add(self.timer_display, 0, wx.ALIGN_CENTER | wx.TOP, 50)
-
-        hbox = wx.BoxSizer(wx.HORIZONTAL)
-        start_button = wx.Button(self.content_box, label="Start")
-        start_button.Bind(wx.EVT_BUTTON, self.OnStartTimer)
-        hbox.Add(start_button, 0, wx.ALL, 5)
-
-        stop_button = wx.Button(self.content_box, label="Stop")
-        stop_button.Bind(wx.EVT_BUTTON, self.OnStopTimer)
-        hbox.Add(stop_button, 0, wx.ALL, 5)
-
-        vbox.Add(hbox, 0, wx.ALIGN_CENTER | wx.TOP, 20)
-        self.content_box.SetSizer(vbox)
-
-    def update_timer(self, event):
-        elapsed_time = datetime.datetime.now() - self.start_time
-        elapsed_str = str(elapsed_time).split('.')[0]
-        self.timer_display.SetLabel(elapsed_str)
-
-    def OnStartTimer(self, event):
+    def OnStart(self, event):
         self.start_time = datetime.datetime.now()
         self.timer.Start(1000)
 
-    def OnStopTimer(self, event):
+    def OnStop(self, event):
         self.timer.Stop()
 
+    def OnTimer(self, event):
+        if self.start_time:
+            elapsed = datetime.datetime.now() - self.start_time
+            self.time_display.SetLabel(str(elapsed).split('.')[0])
+
+    def OnToolsMenu(self, event):
+        tools_menu = wx.Menu()
+        tools_menu.Append(wx.ID_ANY, "Search")
+        tools_menu.Append(wx.ID_ANY, "Query")
+        self.PopupMenu(tools_menu)
+
     def OnRawData(self, event):
-        self.clear_content()
-        vbox = wx.BoxSizer(wx.VERTICAL)
-        title = wx.StaticText(self.content_box, label="Raw Data")
-        title.SetFont(wx.Font(24, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD))
-        vbox.Add(title, 0, wx.ALIGN_CENTER | wx.TOP, 20)
-        self.content_box.SetSizer(vbox)
+        self.ClearContent()
+        
+        title = wx.StaticText(self.white_box, label="Buckets")
+        self.white_box_sizer.Add(title, flag=wx.ALL|wx.ALIGN_CENTER, border=10)
+        
+        grid_sizer = wx.GridSizer(4, 8, 10, 10)
+        
+        columns = ["Bucket ID", "Hostname", "Updated", "Files"]
+        
+        for col in columns:
+            grid_sizer.Add(wx.StaticText(self.white_box, label=col), flag=wx.ALL, border=5)
+        
+        for _ in range(32):
+            grid_sizer.Add(wx.Panel(self.white_box, size=(100, 50), style=wx.BORDER_SIMPLE), flag=wx.ALL, border=5)
+        
+        self.white_box_sizer.Add(grid_sizer, flag=wx.ALIGN_CENTER|wx.ALL, border=10)
+        
+        label = wx.StaticText(self.white_box, label="Import and export buckets")
+        self.white_box_sizer.Add(label, flag=wx.ALL, border=10)
+        
+        table_sizer = wx.GridSizer(2, 2, 10, 10)
+        
+        table_sizer.Add(wx.StaticText(self.white_box, label="Import buckets"), flag=wx.ALL, border=5)
+        table_sizer.Add(wx.StaticText(self.white_box, label="Export buckets"), flag=wx.ALL, border=5)
+        table_sizer.Add(wx.Panel(self.white_box, size=(200, 100), style=wx.BORDER_SIMPLE), flag=wx.ALL, border=5)
+        table_sizer.Add(wx.Panel(self.white_box, size=(200, 100), style=wx.BORDER_SIMPLE), flag=wx.ALL, border=5)
+        
+        self.white_box_sizer.Add(table_sizer, flag=wx.ALIGN_CENTER|wx.ALL, border=10)
+        
+        self.white_box.Layout()
 
     def OnSettings(self, event):
-        self.clear_content()
-        vbox = wx.BoxSizer(wx.VERTICAL)
-        title = wx.StaticText(self.content_box, label="Settings")
-        title.SetFont(wx.Font(24, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD))
-        vbox.Add(title, 0, wx.ALIGN_CENTER | wx.TOP, 20)
-        self.content_box.SetSizer(vbox)
+        self.ClearContent()
+        
+        title = wx.StaticText(self.white_box, label="Settings")
+        self.white_box_sizer.Add(title, flag=wx.ALL|wx.ALIGN_CENTER, border=10)
+        
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        
+        start_of_day_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        start_of_day_label = wx.StaticText(self.white_box, label="Start of day")
+        start_of_day_dropdown = wx.ComboBox(self.white_box, choices=["Yes", "No"])
+        
+        start_of_day_sizer.Add(start_of_day_label, flag=wx.ALL, border=5)
+        start_of_day_sizer.Add(start_of_day_dropdown, flag=wx.ALL|wx.EXPAND, border=5)
+        
+        sizer.Add(start_of_day_sizer, flag=wx.ALL|wx.EXPAND, border=5)
+        
+        theme_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        theme_label = wx.StaticText(self.white_box, label="Theme")
+        theme_dropdown = wx.ComboBox(self.white_box, choices=["Light", "Dark"])
+        
+        theme_sizer.Add(theme_label, flag=wx.ALL, border=5)
+        theme_sizer.Add(theme_dropdown, flag=wx.ALL|wx.EXPAND, border=5)
+        
+        sizer.Add(theme_sizer, flag=wx.ALL|wx.EXPAND, border=5)
+        
+        self.white_box_sizer.Add(sizer, flag=wx.ALIGN_CENTER|wx.ALL, border=10)
+        
+        self.white_box.Layout()
 
-class MyApp(wx.App):
-    def OnInit(self):
-        frame = MyFrame(None)
-        frame.Show(True)
-        return True
-
-if __name__ == '__main__':
-    app = MyApp()
-    app.MainLoop()
+app = wx.App(False)
+frame = MainFrame(None, title="ActivityWatch")
+app.MainLoop()
